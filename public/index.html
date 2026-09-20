@@ -9,7 +9,6 @@
 </head>
 <body>
   <div id="app">
-    <!-- Header -->
     <header class="header">
       <div class="logo">🥗 FreshMate</div>
       <div class="summary" id="summary">
@@ -19,7 +18,6 @@
       </div>
     </header>
 
-    <!-- Tabs -->
     <nav class="tabs">
       <button class="tab active" data-tab="pantry">Pantry</button>
       <button class="tab" data-tab="reminders">Reminders</button>
@@ -27,7 +25,6 @@
       <button class="tab" data-tab="chat">AI Chat</button>
     </nav>
 
-    <!-- Pantry Tab -->
     <section id="pantry" class="tab-content active">
       <div class="toolbar">
         <input type="search" id="search" placeholder="Search products..." />
@@ -37,7 +34,6 @@
       <p id="emptyMsg" class="empty hidden">No products yet. Add your first item!</p>
     </section>
 
-    <!-- Reminders Tab -->
     <section id="reminders" class="tab-content">
       <p class="hint">Reminder frequency is automatic based on how soon items expire:</p>
       <ul class="hint-list">
@@ -50,7 +46,6 @@
       <p id="reminderEmpty" class="empty hidden">No items need active reminders right now.</p>
     </section>
 
-    <!-- Recipes Tab -->
     <section id="recipes" class="tab-content">
       <div class="center-box">
         <p>Based on what you have, AI will suggest 3 dishes that prioritise items expiring soon.</p>
@@ -60,7 +55,6 @@
       <div id="recipeLoading" class="loading hidden">Thinking of tasty ideas...</div>
     </section>
 
-    <!-- Chat Tab -->
     <section id="chat" class="tab-content">
       <div id="chatMessages" class="chat-messages"></div>
       <div class="chat-input-row">
@@ -74,6 +68,15 @@
   <div id="modal" class="modal hidden">
     <div class="modal-content">
       <h2>Add Product</h2>
+
+      <label>Photo (optional – AI will suggest expiry)</label>
+      <div class="photo-row">
+        <input type="file" id="fPhoto" accept="image/*" capture="environment" />
+        <button type="button" class="btn" id="btnAnalyze" disabled>🔍 Analyze with AI</button>
+      </div>
+      <img id="photoPreview" class="photo-preview hidden" alt="Preview" />
+      <p id="analyzeStatus" class="hint hidden"></p>
+
       <label>Name *</label>
       <input id="fName" placeholder="e.g. Fresh milk" />
       <label>Category</label>
@@ -92,6 +95,9 @@
       <input type="date" id="fExpiry" />
       <label>Icon (emoji)</label>
       <input id="fIcon" value="🛒" maxlength="4" />
+
+      <div id="aiDishes" class="ai-dishes hidden"></div>
+
       <div class="modal-actions">
         <button class="btn" id="btnCancel">Cancel</button>
         <button class="btn primary" id="btnSave">Save</button>

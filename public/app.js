@@ -1,6 +1,7 @@
 // ── State ──
 let products = [];
 let chatHistory = [];
+let pendingBase64 = null;
 
 // ── DOM ──
 const $ = (s) => document.querySelector(s);
@@ -125,11 +126,92 @@ async function loadReminders() {
   }
 }
 
+// ── Photo upload & AI analyze ──
+$('#fPhoto').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  pendingBase64 = null;
+  $('#btnAnalyze').disabled = !file;
+  $('#photoPreview').classList.add('hidden');
+  $('#analyzeStatus').classList.add('hidden');
+  $('#aiDishes').classList.add('hidden');
+
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    $('#photoPreview').src = dataUrl;
+    $('#photoPreview').classList.remove('hidden');
+    // keep full data URL; server strips prefix
+    pendingBase64 = dataUrl;
+  };
+  reader.readAsDataURL(file);
+});
+
+$('#btnAnalyze').addEventListener('click', async () => {
+  if (!pendingBase64) return;
+  const status = $('#analyzeStatus');
+  const btn = $('#btnAnalyze');
+  btn.disabled = true;
+  status.textContent = 'Analyzing photo with AI...';
+  status.classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/analyze-photo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: pendingBase64 })
+    });
+    const data = await res.json();
+    if (data.error) {
+      status.textContent = 'Error: ' + data.error;
+      return;
+    }
+
+    if (data.name) $('#fName').value = data.name;
+    if (data.category) {
+      const sel = $('#fCategory');
+      for (const opt of sel.options) {
+        if (opt.value === data.category || opt.text === data.category) {
+          sel.value = opt.value;
+          break;
+        }
+      }
+    }
+    if (data.icon) $('#fIcon').value = data.icon;
+    if (data.suggestedExpiry) $('#fExpiry').value = data.suggestedExpiry;
+
+    status.textContent = data.notes
+      ? `AI: ${data.notes}`
+      : 'AI analysis done — review and edit fields if needed.';
+
+    if (data.dishes && data.dishes.length) {
+      const box = $('#aiDishes');
+      box.innerHTML = '<h4>Suggested dishes</h4><ul>' +
+        data.dishes.map(d =>
+          `<li>${d.icon || '🍽'} <strong>${escapeHtml(d.title || '')}</strong> — ${escapeHtml(d.why || '')}</li>`
+        ).join('') + '</ul>';
+      box.classList.remove('hidden');
+    }
+  } catch (e) {
+    status.textContent = 'Network error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ── Modal add ──
 $('#btnAdd').addEventListener('click', () => {
   const d = new Date();
   d.setDate(d.getDate() + 7);
   $('#fExpiry').value = d.toISOString().slice(0, 10);
+  $('#fName').value = '';
+  $('#fPhoto').value = '';
+  pendingBase64 = null;
+  $('#photoPreview').classList.add('hidden');
+  $('#analyzeStatus').classList.add('hidden');
+  $('#aiDishes').classList.add('hidden');
+  $('#btnAnalyze').disabled = true;
   $('#modal').classList.remove('hidden');
 });
 $('#btnCancel').addEventListener('click', () => $('#modal').classList.add('hidden'));
@@ -153,7 +235,6 @@ $('#btnSave').addEventListener('click', async () => {
   });
   if (res.ok) {
     $('#modal').classList.add('hidden');
-    $('#fName').value = '';
     loadProducts();
   } else {
     const err = await res.json();
@@ -245,7 +326,6 @@ $('#chatInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendChat();
 });
 
-// ── Utils ──
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;')
@@ -254,6 +334,5 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-// ── Init ──
 loadProducts();
 appendBubble('assistant', 'Hi! I am FreshMate AI. Ask me anything about your pantry 🥗');
