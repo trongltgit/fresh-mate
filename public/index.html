@@ -28,10 +28,10 @@
     <section id="pantry" class="tab-content active">
       <div class="toolbar">
         <input type="search" id="search" placeholder="Search products..." />
-        <button class="btn primary" id="btnAdd">+ Add</button>
+        <button class="btn primary" id="btnAdd">+ Add photo</button>
       </div>
       <div id="productList" class="product-list"></div>
-      <p id="emptyMsg" class="empty hidden">No products yet. Add your first item!</p>
+      <p id="emptyMsg" class="empty hidden">No products yet. Add one by taking a photo!</p>
     </section>
 
     <section id="reminders" class="tab-content">
@@ -64,43 +64,39 @@
     </section>
   </div>
 
-  <!-- Add Item Modal -->
+  <!-- Add by photo only -->
   <div id="modal" class="modal hidden">
     <div class="modal-content">
-      <h2>Add Product</h2>
+      <h2>Add product from photo</h2>
+      <p class="hint">Take or upload a photo. AI will fill name, category, and expiry date for you.</p>
 
-      <label>Photo (optional – AI will suggest expiry)</label>
+      <label>Food photo *</label>
       <div class="photo-row">
         <input type="file" id="fPhoto" accept="image/*" capture="environment" />
-        <button type="button" class="btn" id="btnAnalyze" disabled>🔍 Analyze with AI</button>
       </div>
       <img id="photoPreview" class="photo-preview hidden" alt="Preview" />
+      <button type="button" class="btn primary" id="btnAnalyze" disabled style="width:100%;margin-top:10px">
+        🔍 Analyze with AI
+      </button>
       <p id="analyzeStatus" class="hint hidden"></p>
 
-      <label>Name *</label>
-      <input id="fName" placeholder="e.g. Fresh milk" />
-      <label>Category</label>
-      <select id="fCategory">
-        <option>Dairy & Eggs</option>
-        <option>Meat & Fish</option>
-        <option>Vegetables</option>
-        <option>Fruits</option>
-        <option>Dry Goods</option>
-        <option>Drinks</option>
-        <option>Other</option>
-      </select>
-      <label>Quantity</label>
-      <input id="fQty" placeholder="1 pack / 500g" value="1" />
-      <label>Expiry Date *</label>
-      <input type="date" id="fExpiry" />
-      <label>Icon (emoji)</label>
-      <input id="fIcon" value="🛒" maxlength="4" />
-
-      <div id="aiDishes" class="ai-dishes hidden"></div>
+      <div id="aiFields" class="hidden">
+        <label>Name</label>
+        <input id="fName" readonly />
+        <label>Category</label>
+        <input id="fCategory" readonly />
+        <label>Quantity</label>
+        <input id="fQty" value="1" />
+        <label>Expiry date (from AI)</label>
+        <input type="date" id="fExpiry" />
+        <label>Icon</label>
+        <input id="fIcon" value="🛒" maxlength="4" />
+        <div id="aiDishes" class="ai-dishes hidden"></div>
+      </div>
 
       <div class="modal-actions">
         <button class="btn" id="btnCancel">Cancel</button>
-        <button class="btn primary" id="btnSave">Save</button>
+        <button class="btn primary" id="btnSave" disabled>Save to pantry</button>
       </div>
     </div>
   </div>

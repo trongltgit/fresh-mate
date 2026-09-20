@@ -1,13 +1,10 @@
-// ── State ──
 let products = [];
 let chatHistory = [];
 let pendingBase64 = null;
 
-// ── DOM ──
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
-// ── Tabs ──
 $$('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
     $$('.tab').forEach(t => t.classList.remove('active'));
@@ -18,16 +15,13 @@ $$('.tab').forEach(btn => {
   });
 });
 
-// ── Load products ──
 async function loadProducts() {
   try {
     const res = await fetch('/api/products');
     products = await res.json();
     renderProducts();
     loadSummary();
-  } catch (e) {
-    console.error(e);
-  }
+  } catch (e) { console.error(e); }
 }
 
 async function loadSummary() {
@@ -46,7 +40,6 @@ function renderProducts() {
     p.name.toLowerCase().includes(q) ||
     (p.category || '').toLowerCase().includes(q)
   );
-
   const container = $('#productList');
   container.innerHTML = '';
   $('#emptyMsg').classList.toggle('hidden', list.length > 0);
@@ -75,33 +68,27 @@ function renderProducts() {
     });
   });
 }
-
 $('#search').addEventListener('input', renderProducts);
 
-// ── Reminders ──
 async function loadReminders() {
   try {
     const res = await fetch('/api/reminders');
     const data = await res.json();
     const container = $('#reminderSections');
     container.innerHTML = '';
-
     const sections = [
-      { key: 'daily', title: '🔔 Daily reminders', items: data.daily || [] },
-      { key: 'every_2_days', title: '📅 Every 2 days', items: data.every_2_days || [] },
-      { key: 'weekly', title: '📆 Weekly reminders', items: data.weekly || [] }
+      { title: '🔔 Daily reminders', items: data.daily || [] },
+      { title: '📅 Every 2 days', items: data.every_2_days || [] },
+      { title: '📆 Weekly reminders', items: data.weekly || [] }
     ];
-
     let total = 0;
     sections.forEach(sec => {
       total += sec.items.length;
-      if (sec.items.length === 0) return;
-
+      if (!sec.items.length) return;
       const title = document.createElement('div');
       title.className = 'section-title';
       title.innerHTML = `${sec.title} <span class="count">${sec.items.length}</span>`;
       container.appendChild(title);
-
       const list = document.createElement('div');
       list.className = 'reminder-list';
       sec.items.forEach(p => {
@@ -113,37 +100,32 @@ async function loadReminders() {
             <div class="card-name">${escapeHtml(p.name)}</div>
             <div class="card-meta">${escapeHtml(p.quantity)} · ${escapeHtml(p.category || '')}</div>
             <div class="card-expiry ${p.expiryStatus}">${escapeHtml(p.expiryLabel)}</div>
-          </div>
-        `;
+          </div>`;
         list.appendChild(card);
       });
       container.appendChild(list);
     });
-
     $('#reminderEmpty').classList.toggle('hidden', total > 0);
-  } catch (e) {
-    console.error(e);
-  }
+  } catch (e) { console.error(e); }
 }
 
-// ── Photo upload & AI analyze ──
+// ── Photo-only add ──
 $('#fPhoto').addEventListener('change', (e) => {
   const file = e.target.files[0];
   pendingBase64 = null;
   $('#btnAnalyze').disabled = !file;
+  $('#btnSave').disabled = true;
   $('#photoPreview').classList.add('hidden');
   $('#analyzeStatus').classList.add('hidden');
+  $('#aiFields').classList.add('hidden');
   $('#aiDishes').classList.add('hidden');
-
   if (!file) return;
 
   const reader = new FileReader();
   reader.onload = () => {
-    const dataUrl = reader.result;
-    $('#photoPreview').src = dataUrl;
+    pendingBase64 = reader.result;
+    $('#photoPreview').src = pendingBase64;
     $('#photoPreview').classList.remove('hidden');
-    // keep full data URL; server strips prefix
-    pendingBase64 = dataUrl;
   };
   reader.readAsDataURL(file);
 });
@@ -165,25 +147,24 @@ $('#btnAnalyze').addEventListener('click', async () => {
     const data = await res.json();
     if (data.error) {
       status.textContent = 'Error: ' + data.error;
+      btn.disabled = false;
       return;
     }
 
-    if (data.name) $('#fName').value = data.name;
-    if (data.category) {
-      const sel = $('#fCategory');
-      for (const opt of sel.options) {
-        if (opt.value === data.category || opt.text === data.category) {
-          sel.value = opt.value;
-          break;
-        }
-      }
+    $('#fName').value = data.name || 'Unknown food';
+    $('#fCategory').value = data.category || 'Other';
+    $('#fIcon').value = data.icon || '🛒';
+    if (data.suggestedExpiry) {
+      $('#fExpiry').value = data.suggestedExpiry;
+    } else {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      $('#fExpiry').value = d.toISOString().slice(0, 10);
     }
-    if (data.icon) $('#fIcon').value = data.icon;
-    if (data.suggestedExpiry) $('#fExpiry').value = data.suggestedExpiry;
 
-    status.textContent = data.notes
-      ? `AI: ${data.notes}`
-      : 'AI analysis done — review and edit fields if needed.';
+    status.textContent = data.notes ? `AI: ${data.notes}` : 'AI done — you can edit expiry if needed, then Save.';
+    $('#aiFields').classList.remove('hidden');
+    $('#btnSave').disabled = false;
 
     if (data.dishes && data.dishes.length) {
       const box = $('#aiDishes');
@@ -200,18 +181,20 @@ $('#btnAnalyze').addEventListener('click', async () => {
   }
 });
 
-// ── Modal add ──
 $('#btnAdd').addEventListener('click', () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 7);
-  $('#fExpiry').value = d.toISOString().slice(0, 10);
-  $('#fName').value = '';
-  $('#fPhoto').value = '';
   pendingBase64 = null;
+  $('#fPhoto').value = '';
+  $('#fName').value = '';
+  $('#fCategory').value = '';
+  $('#fQty').value = '1';
+  $('#fExpiry').value = '';
+  $('#fIcon').value = '🛒';
   $('#photoPreview').classList.add('hidden');
   $('#analyzeStatus').classList.add('hidden');
+  $('#aiFields').classList.add('hidden');
   $('#aiDishes').classList.add('hidden');
   $('#btnAnalyze').disabled = true;
+  $('#btnSave').disabled = true;
   $('#modal').classList.remove('hidden');
 });
 $('#btnCancel').addEventListener('click', () => $('#modal').classList.add('hidden'));
@@ -219,13 +202,13 @@ $('#btnCancel').addEventListener('click', () => $('#modal').classList.add('hidde
 $('#btnSave').addEventListener('click', async () => {
   const body = {
     name: $('#fName').value.trim(),
-    category: $('#fCategory').value,
+    category: $('#fCategory').value.trim() || 'Other',
     quantity: $('#fQty').value.trim() || '1',
     expiryDate: $('#fExpiry').value,
     icon: $('#fIcon').value.trim() || '🛒'
   };
   if (!body.name || !body.expiryDate) {
-    alert('Please enter name and expiry date');
+    alert('Please analyze a photo first so AI can fill name and expiry.');
     return;
   }
   const res = await fetch('/api/products', {
@@ -242,7 +225,32 @@ $('#btnSave').addEventListener('click', async () => {
   }
 });
 
-// ── Recipes ──
+// ── Recipes (parse array or raw string) ──
+function renderRecipeCards(data, list) {
+  data.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'recipe-card';
+    card.innerHTML = `
+      <div class="recipe-title">${r.icon || '🍽'} ${escapeHtml(r.title || '')}</div>
+      <div class="recipe-meta">
+        <span>⏱ ${escapeHtml(r.time || '')}</span>
+        <span>${escapeHtml(r.difficulty || '')}</span>
+        ${(r.tags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('')}
+      </div>
+      <div class="recipe-section">
+        <h4>Ingredients</h4>
+        <ul>${(r.ingredients || []).map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+      </div>
+      <div class="recipe-section">
+        <h4>Steps</h4>
+        <ol>${(r.steps || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+      </div>
+      ${r.tip ? `<div class="recipe-section"><h4>Tip</h4><p>${escapeHtml(r.tip)}</p></div>` : ''}
+    `;
+    list.appendChild(card);
+  });
+}
+
 $('#btnRecipes').addEventListener('click', async () => {
   const btn = $('#btnRecipes');
   const loading = $('#recipeLoading');
@@ -253,34 +261,25 @@ $('#btnRecipes').addEventListener('click', async () => {
 
   try {
     const res = await fetch('/api/recipes', { method: 'POST' });
-    const data = await res.json();
+    let data = await res.json();
+
+    // If server returned { raw: "..." }, try parse the string
+    if (data && data.raw && typeof data.raw === 'string') {
+      try {
+        const start = data.raw.indexOf('[');
+        const end = data.raw.lastIndexOf(']');
+        if (start >= 0 && end > start) {
+          data = JSON.parse(data.raw.slice(start, end + 1));
+        }
+      } catch (_) {}
+    }
+
     if (data.error) {
       list.innerHTML = `<p class="empty">Error: ${escapeHtml(data.error)}</p>`;
     } else if (Array.isArray(data)) {
-      data.forEach(r => {
-        const card = document.createElement('div');
-        card.className = 'recipe-card';
-        card.innerHTML = `
-          <div class="recipe-title">${r.icon || '🍽'} ${escapeHtml(r.title || '')}</div>
-          <div class="recipe-meta">
-            <span>⏱ ${escapeHtml(r.time || '')}</span>
-            <span>${escapeHtml(r.difficulty || '')}</span>
-            ${(r.tags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('')}
-          </div>
-          <div class="recipe-section">
-            <h4>Ingredients</h4>
-            <ul>${(r.ingredients || []).map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
-          </div>
-          <div class="recipe-section">
-            <h4>Steps</h4>
-            <ol>${(r.steps || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
-          </div>
-          ${r.tip ? `<div class="recipe-section"><h4>Tip</h4><p>${escapeHtml(r.tip)}</p></div>` : ''}
-        `;
-        list.appendChild(card);
-      });
+      renderRecipeCards(data, list);
     } else {
-      list.innerHTML = `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+      list.innerHTML = `<p class="empty">Could not parse recipes. Try again.</p>`;
     }
   } catch (e) {
     list.innerHTML = `<p class="empty">Network error: ${e.message}</p>`;
@@ -290,7 +289,6 @@ $('#btnRecipes').addEventListener('click', async () => {
   }
 });
 
-// ── Chat ──
 function appendBubble(role, text) {
   const div = document.createElement('div');
   div.className = `bubble ${role}`;
@@ -313,18 +311,14 @@ async function sendChat() {
     body: JSON.stringify({ message: msg, history: chatHistory.slice(0, -1) })
   });
   const data = await res.json();
-  if (data.error) {
-    appendBubble('assistant', '❌ ' + data.error);
-  } else {
+  if (data.error) appendBubble('assistant', '❌ ' + data.error);
+  else {
     appendBubble('assistant', data.reply);
     chatHistory.push({ role: 'assistant', content: data.reply });
   }
 }
-
 $('#btnSend').addEventListener('click', sendChat);
-$('#chatInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendChat();
-});
+$('#chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 
 function escapeHtml(s) {
   return String(s)
