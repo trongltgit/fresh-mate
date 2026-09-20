@@ -114,14 +114,13 @@ std::string ApiClient::generateRecipes(const std::string& pantryContext) {
         "    \"tags\": [\"Quick\", \"Healthy\"],\n"
         "    \"ingredients\": [\"Item 1 — how much\"],\n"
         "    \"steps\": [\"Step 1\", \"Step 2\"],\n"
-        "    \"tip\": \"One helpful tip\",\n"
-        "    \"pairings\": [\"Wine or drink suggestion\"]\n"
+        "    \"tip\": \"One helpful tip\"\n"
         "  }\n"
         "]";
 
     nlohmann::json body = {
         {"model", kChatModel},
-        {"max_tokens", 800},
+        {"max_tokens", 2000},
         {"messages", nlohmann::json::array({
             {{"role", "user"}, {"content", prompt}}
         })}
