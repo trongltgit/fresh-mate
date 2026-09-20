@@ -218,6 +218,43 @@ int main() {
         }
     });
 
+
+    // ── API: analyze food photo (base64 JPEG) ──
+    svr.Post("/api/analyze-photo", [&db, &api](const Request& req, Response& res) {
+        try {
+            auto body = json::parse(req.body);
+            std::string b64 = body.value("image", "");
+            if (b64.empty()) {
+                res.status = 400;
+                res.set_content(R"({"error":"image (base64) required"})", "application/json");
+                return;
+            }
+            // strip data URL prefix if present
+            auto pos = b64.find(",");
+            if (pos != std::string::npos) b64 = b64.substr(pos + 1);
+
+            std::string context = db.pantryContextForAI();
+            std::string raw = api.analyzeFoodPhoto(b64, context);
+
+            if (raw.rfind("ERROR:", 0) == 0) {
+                res.status = 502;
+                json err = {{"error", raw.substr(6)}};
+                res.set_content(err.dump(), "application/json");
+                return;
+            }
+            try {
+                auto arr = json::parse(raw);
+                res.set_content(arr.dump(), "application/json");
+            } catch (...) {
+                json out = {{"raw", raw}};
+                res.set_content(out.dump(), "application/json");
+            }
+        } catch (const std::exception& e) {
+            res.status = 400;
+            res.set_content(std::string(R"({"error":")") + e.what() + "\"}", "application/json");
+        }
+    });
+
     // Health
     svr.Get("/health", [](const Request&, Response& res) {
         res.set_content("OK", "text/plain");

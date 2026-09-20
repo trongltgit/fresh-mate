@@ -3,6 +3,11 @@
 #include <iostream>
 #include <sstream>
 
+// Current Groq models (as of Sept 2026)
+// llama-3.3-70b-versatile was deprecated Aug 16, 2026
+static const char* kChatModel   = "openai/gpt-oss-20b";
+static const char* kVisionModel = "qwen/qwen3.8-27b";
+
 static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* s) {
     size_t total = size * nmemb;
     s->append(static_cast<char*>(contents), total);
@@ -83,7 +88,7 @@ std::string ApiClient::sendChat(const std::string& pantryContext,
     messages.push_back({{"role", "user"}, {"content", userMessage}});
 
     nlohmann::json body = {
-        {"model", "llama-3.3-70b-versatile"},
+        {"model", kChatModel},
         {"max_tokens", 1024},
         {"messages", messages}
     };
@@ -115,7 +120,7 @@ std::string ApiClient::generateRecipes(const std::string& pantryContext) {
         "]";
 
     nlohmann::json body = {
-        {"model", "llama-3.3-70b-versatile"},
+        {"model", kChatModel},
         {"max_tokens", 2048},
         {"messages", nlohmann::json::array({
             {{"role", "user"}, {"content", prompt}}
@@ -125,7 +130,6 @@ std::string ApiClient::generateRecipes(const std::string& pantryContext) {
     std::string text = extractContent(postToGroq(body));
     if (text.rfind("ERROR:", 0) == 0) return text;
 
-    // Extract pure JSON array if present
     auto start = text.find('[');
     auto end   = text.rfind(']');
     if (start != std::string::npos && end != std::string::npos && end > start) {
@@ -136,15 +140,18 @@ std::string ApiClient::generateRecipes(const std::string& pantryContext) {
 
 std::string ApiClient::analyzeFoodPhoto(const std::string& base64Jpeg,
                                         const std::string& pantryContext) {
-    // Groq vision models (update model name if Groq releases newer ones)
     std::string prompt =
         "You are a food freshness expert. Look at this food photo.\n"
-        "1) Estimate a realistic expiry / best-before date (YYYY-MM-DD).\n"
+        "1) Estimate a realistic expiry / best-before date (YYYY-MM-DD). Today is around late September 2026.\n"
         "2) Briefly explain why (color, texture, packaging if visible).\n"
-        "3) Suggest 2 simple dishes that use this item soon, considering the current pantry:\n"
+        "3) Suggest a product name and category if you can identify the food.\n"
+        "4) Suggest 2 simple dishes that use this item soon, considering the current pantry:\n"
         + pantryContext + "\n\n"
         "Respond ONLY with valid JSON, no markdown:\n"
         "{\n"
+        "  \"name\": \"Product name\",\n"
+        "  \"category\": \"Dairy & Eggs or Vegetables or Fruits or Meat & Fish or Dry Goods or Drinks or Other\",\n"
+        "  \"icon\": \"one emoji\",\n"
         "  \"suggestedExpiry\": \"YYYY-MM-DD\",\n"
         "  \"notes\": \"short reason\",\n"
         "  \"dishes\": [\n"
@@ -160,7 +167,7 @@ std::string ApiClient::analyzeFoodPhoto(const std::string& base64Jpeg,
     });
 
     nlohmann::json body = {
-        {"model", "llama-3.2-11b-vision-preview"},
+        {"model", kVisionModel},
         {"max_tokens", 1024},
         {"messages", nlohmann::json::array({
             {{"role", "user"}, {"content", content}}
@@ -170,7 +177,6 @@ std::string ApiClient::analyzeFoodPhoto(const std::string& base64Jpeg,
     std::string text = extractContent(postToGroq(body));
     if (text.rfind("ERROR:", 0) == 0) return text;
 
-    // Try to extract JSON object
     auto start = text.find('{');
     auto end   = text.rfind('}');
     if (start != std::string::npos && end != std::string::npos && end > start) {
