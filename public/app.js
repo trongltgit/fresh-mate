@@ -320,9 +320,26 @@ $('#btnRecipes').addEventListener('click', async () => {
         if (start >= 0 && end > start) data = JSON.parse(data.raw.slice(start, end + 1));
       } catch (_) {}
     }
-    if (data.error) list.innerHTML = `<p class="empty">Error: ${escapeHtml(data.error)}</p>`;
+    if (data.error) {
+      // retry once automatically on parse errors
+      list.innerHTML = `<p class="empty">⚠️ ${escapeHtml(data.error)} — retrying…</p>`;
+      try {
+        const res2 = await fetch('/api/recipes', { method: 'POST' });
+        let data2 = await res2.json();
+        if (data2 && data2.raw && typeof data2.raw === 'string') {
+          try {
+            const s = data2.raw.indexOf('['), e2 = data2.raw.lastIndexOf(']');
+            if (s >= 0 && e2 > s) data2 = JSON.parse(data2.raw.slice(s, e2 + 1));
+          } catch (_) {}
+        }
+        if (Array.isArray(data2)) { list.innerHTML = ''; renderRecipeCards(data2, list); }
+        else list.innerHTML = `<p class="empty">Could not generate recipes. Make sure you have items in your pantry and try again.</p>`;
+      } catch (_) {
+        list.innerHTML = `<p class="empty">Could not generate recipes. Make sure you have items in your pantry and try again.</p>`;
+      }
+    }
     else if (Array.isArray(data)) renderRecipeCards(data, list);
-    else list.innerHTML = `<p class="empty">Could not parse recipes. Try again.</p>`;
+    else list.innerHTML = `<p class="empty">Could not generate recipes. Make sure you have items in your pantry and try again.</p>`;
   } catch (e) {
     list.innerHTML = `<p class="empty">Network error: ${e.message}</p>`;
   } finally {
