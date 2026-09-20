@@ -89,7 +89,7 @@ std::string ApiClient::sendChat(const std::string& pantryContext,
 
     nlohmann::json body = {
         {"model", kChatModel},
-        {"max_tokens", 1024},
+        {"max_tokens", 800},
         {"messages", messages}
     };
 
@@ -121,7 +121,7 @@ std::string ApiClient::generateRecipes(const std::string& pantryContext) {
 
     nlohmann::json body = {
         {"model", kChatModel},
-        {"max_tokens", 4096},
+        {"max_tokens", 800},
         {"messages", nlohmann::json::array({
             {{"role", "user"}, {"content", prompt}}
         })}
@@ -185,7 +185,7 @@ std::string ApiClient::analyzeFoodPhoto(const std::string& base64Jpeg,
 
     nlohmann::json body = {
         {"model", kVisionModel},
-        {"max_tokens", 1024},
+        {"max_tokens", 512},
         {"messages", nlohmann::json::array({
             {{"role", "user"}, {"content", content}}
         })}
