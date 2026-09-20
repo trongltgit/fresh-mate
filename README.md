@@ -144,7 +144,7 @@ curl https://your-app.onrender.com/api/reminders
 - Free Render tier sleeps after ~15 min of inactivity (cold start on next request).
 - Without a Persistent Disk the SQLite file is lost on restart.
 - Never commit your `GROQ_API_KEY`. Use environment variables only.
-- Model used: `llama-3.3-70b-versatile` (chat/recipes). Vision model is ready in code for future photo analysis.
+- Model used: `openai/gpt-oss-20b (chat) + qwen/qwen3.8-27b (vision)` (chat/recipes). Vision model is ready in code for future photo analysis.
 
 ---
 
