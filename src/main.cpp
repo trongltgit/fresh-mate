@@ -209,13 +209,28 @@ int main() {
             return;
         }
 
+        // Try parse as JSON array; if model wrapped extra text, extract [...] 
         try {
             auto arr = json::parse(raw);
-            res.set_content(arr.dump(), "application/json");
-        } catch (...) {
-            json out = {{"raw", raw}};
-            res.set_content(out.dump(), "application/json");
+            if (arr.is_array()) {
+                res.set_content(arr.dump(), "application/json");
+                return;
+            }
+        } catch (...) {}
+
+        auto start = raw.find('[');
+        auto end = raw.rfind(']');
+        if (start != std::string::npos && end != std::string::npos && end > start) {
+            try {
+                auto arr = json::parse(raw.substr(start, end - start + 1));
+                res.set_content(arr.dump(), "application/json");
+                return;
+            } catch (...) {}
         }
+
+        res.status = 502;
+        json err = {{"error", "Could not parse recipes from AI"}, {"raw", raw}};
+        res.set_content(err.dump(), "application/json");
     });
 
 

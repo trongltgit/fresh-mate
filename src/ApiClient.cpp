@@ -121,7 +121,7 @@ std::string ApiClient::generateRecipes(const std::string& pantryContext) {
 
     nlohmann::json body = {
         {"model", kChatModel},
-        {"max_tokens", 2048},
+        {"max_tokens", 4096},
         {"messages", nlohmann::json::array({
             {{"role", "user"}, {"content", prompt}}
         })}
@@ -130,10 +130,27 @@ std::string ApiClient::generateRecipes(const std::string& pantryContext) {
     std::string text = extractContent(postToGroq(body));
     if (text.rfind("ERROR:", 0) == 0) return text;
 
+    // Strip markdown code fences if present
+    auto fence = text.find("```");
+    if (fence != std::string::npos) {
+        auto start_fence = text.find('\n', fence);
+        auto end_fence = text.rfind("```");
+        if (start_fence != std::string::npos && end_fence != std::string::npos && end_fence > start_fence)
+            text = text.substr(start_fence + 1, end_fence - start_fence - 1);
+    }
+
     auto start = text.find('[');
     auto end   = text.rfind(']');
     if (start != std::string::npos && end != std::string::npos && end > start) {
-        return text.substr(start, end - start + 1);
+        std::string arr = text.substr(start, end - start + 1);
+        // Validate it parses
+        try {
+            auto _ = nlohmann::json::parse(arr);
+            return arr;
+        } catch (...) {
+            // try to fix common truncation: missing closing braces
+            return arr;
+        }
     }
     return text;
 }
