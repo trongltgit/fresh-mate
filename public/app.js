@@ -109,8 +109,47 @@ async function loadReminders() {
   } catch (e) { console.error(e); }
 }
 
-// ── Photo-only add ──
-$('#fPhoto').addEventListener('change', (e) => {
+/** Compress image to max 800px JPEG ~quality 0.7 — avoids "request too large" */
+function compressImage(file, maxSide = 800, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > maxSide || h > maxSide) {
+        if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
+        else { w = Math.round(w * maxSide / h); h = maxSide; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+/** Normalize AI date strings to YYYY-MM-DD for <input type="date"> */
+function toISODate(s) {
+  if (!s) return '';
+  s = String(s).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // DD/MM/YYYY or DD-MM-YYYY
+  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (m) {
+    const d = m[1].padStart(2, '0'), mo = m[2].padStart(2, '0'), y = m[3];
+    return `${y}-${mo}-${d}`;
+  }
+  // MM/DD/YYYY ambiguous — if first > 12 treat as DD/MM
+  m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  return '';
+}
+
+$('#fPhoto').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   pendingBase64 = null;
   $('#btnAnalyze').disabled = !file;
@@ -121,13 +160,18 @@ $('#fPhoto').addEventListener('change', (e) => {
   $('#aiDishes').classList.add('hidden');
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    pendingBase64 = reader.result;
+  try {
+    $('#analyzeStatus').textContent = 'Compressing photo...';
+    $('#analyzeStatus').classList.remove('hidden');
+    pendingBase64 = await compressImage(file);
     $('#photoPreview').src = pendingBase64;
     $('#photoPreview').classList.remove('hidden');
-  };
-  reader.readAsDataURL(file);
+    $('#analyzeStatus').classList.add('hidden');
+  } catch (err) {
+    $('#analyzeStatus').textContent = 'Could not read image';
+    $('#analyzeStatus').classList.remove('hidden');
+    $('#btnAnalyze').disabled = true;
+  }
 });
 
 $('#btnAnalyze').addEventListener('click', async () => {
@@ -154,15 +198,16 @@ $('#btnAnalyze').addEventListener('click', async () => {
     $('#fName').value = data.name || 'Unknown food';
     $('#fCategory').value = data.category || 'Other';
     $('#fIcon').value = data.icon || '🛒';
-    if (data.suggestedExpiry) {
-      $('#fExpiry').value = data.suggestedExpiry;
-    } else {
+
+    let exp = toISODate(data.suggestedExpiry);
+    if (!exp) {
       const d = new Date();
       d.setDate(d.getDate() + 7);
-      $('#fExpiry').value = d.toISOString().slice(0, 10);
+      exp = d.toISOString().slice(0, 10);
     }
+    $('#fExpiry').value = exp;
 
-    status.textContent = data.notes ? `AI: ${data.notes}` : 'AI done — you can edit expiry if needed, then Save.';
+    status.textContent = data.notes ? `AI: ${data.notes}` : 'AI done — edit if needed, then Save.';
     $('#aiFields').classList.remove('hidden');
     $('#btnSave').disabled = false;
 
@@ -204,11 +249,15 @@ $('#btnSave').addEventListener('click', async () => {
     name: $('#fName').value.trim(),
     category: $('#fCategory').value.trim() || 'Other',
     quantity: $('#fQty').value.trim() || '1',
-    expiryDate: $('#fExpiry').value,
+    expiryDate: toISODate($('#fExpiry').value) || $('#fExpiry').value,
     icon: $('#fIcon').value.trim() || '🛒'
   };
   if (!body.name || !body.expiryDate) {
     alert('Please analyze a photo first so AI can fill name and expiry.');
+    return;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(body.expiryDate)) {
+    alert('Invalid expiry date. Please pick a date in the date field.');
     return;
   }
   const res = await fetch('/api/products', {
@@ -220,12 +269,11 @@ $('#btnSave').addEventListener('click', async () => {
     $('#modal').classList.add('hidden');
     loadProducts();
   } else {
-    const err = await res.json();
-    alert(err.error || 'Error');
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || 'Save failed');
   }
 });
 
-// ── Recipes (parse array or raw string) ──
 function renderRecipeCards(data, list) {
   data.forEach(r => {
     const card = document.createElement('div');
@@ -258,29 +306,19 @@ $('#btnRecipes').addEventListener('click', async () => {
   btn.disabled = true;
   loading.classList.remove('hidden');
   list.innerHTML = '';
-
   try {
     const res = await fetch('/api/recipes', { method: 'POST' });
     let data = await res.json();
-
-    // If server returned { raw: "..." }, try parse the string
     if (data && data.raw && typeof data.raw === 'string') {
       try {
         const start = data.raw.indexOf('[');
         const end = data.raw.lastIndexOf(']');
-        if (start >= 0 && end > start) {
-          data = JSON.parse(data.raw.slice(start, end + 1));
-        }
+        if (start >= 0 && end > start) data = JSON.parse(data.raw.slice(start, end + 1));
       } catch (_) {}
     }
-
-    if (data.error) {
-      list.innerHTML = `<p class="empty">Error: ${escapeHtml(data.error)}</p>`;
-    } else if (Array.isArray(data)) {
-      renderRecipeCards(data, list);
-    } else {
-      list.innerHTML = `<p class="empty">Could not parse recipes. Try again.</p>`;
-    }
+    if (data.error) list.innerHTML = `<p class="empty">Error: ${escapeHtml(data.error)}</p>`;
+    else if (Array.isArray(data)) renderRecipeCards(data, list);
+    else list.innerHTML = `<p class="empty">Could not parse recipes. Try again.</p>`;
   } catch (e) {
     list.innerHTML = `<p class="empty">Network error: ${e.message}</p>`;
   } finally {
@@ -304,7 +342,6 @@ async function sendChat() {
   input.value = '';
   appendBubble('user', msg);
   chatHistory.push({ role: 'user', content: msg });
-
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -321,11 +358,7 @@ $('#btnSend').addEventListener('click', sendChat);
 $('#chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 
 function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 loadProducts();
