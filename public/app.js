@@ -47,8 +47,11 @@ function renderProducts() {
   list.forEach(p => {
     const card = document.createElement('div');
     card.className = `card status-${p.expiryStatus}`;
+    const photoHtml = p.photoPath
+      ? `<img class="card-photo" src="${p.photoPath}" alt="${escapeHtml(p.name)}" />`
+      : `<div class="card-icon">${p.icon || '🛒'}</div>`;
     card.innerHTML = `
-      <div class="card-icon">${p.icon || '🛒'}</div>
+      ${photoHtml}
       <div class="card-body">
         <div class="card-name">${escapeHtml(p.name)}</div>
         <div class="card-meta">${escapeHtml(p.quantity)} · ${escapeHtml(p.category || '')}</div>
@@ -250,7 +253,8 @@ $('#btnSave').addEventListener('click', async () => {
     category: $('#fCategory').value.trim() || 'Other',
     quantity: $('#fQty').value.trim() || '1',
     expiryDate: toISODate($('#fExpiry').value) || $('#fExpiry').value,
-    icon: $('#fIcon').value.trim() || '🛒'
+    icon: $('#fIcon').value.trim() || '🛒',
+    photoPath: pendingBase64 || ''
   };
   if (!body.name || !body.expiryDate) {
     alert('Please analyze a photo first so AI can fill name and expiry.');
