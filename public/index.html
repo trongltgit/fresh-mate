@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FreshMate – Smart Pantry Manager</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">🥗 FreshMate</div>
+      <div class="summary" id="summary">
+        <span class="badge ok" id="freshCount">0 fresh</span>
+        <span class="badge warn" id="warnCount">0 expiring soon</span>
+        <span class="badge danger" id="dangerCount">0 expired</span>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="pantry">Pantry</button>
+      <button class="tab" data-tab="reminders">Reminders</button>
+      <button class="tab" data-tab="recipes">AI Recipes</button>
+      <button class="tab" data-tab="chat">AI Chat</button>
+    </nav>
+
+    <!-- Pantry Tab -->
+    <section id="pantry" class="tab-content active">
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="Search products..." />
+        <button class="btn primary" id="btnAdd">+ Add</button>
+      </div>
+      <div id="productList" class="product-list"></div>
+      <p id="emptyMsg" class="empty hidden">No products yet. Add your first item!</p>
+    </section>
+
+    <!-- Reminders Tab -->
+    <section id="reminders" class="tab-content">
+      <p class="hint">Reminder frequency is automatic based on how soon items expire:</p>
+      <ul class="hint-list">
+        <li><strong>≤ 2 days</strong> → Daily reminder</li>
+        <li><strong>3–7 days</strong> → Every 2 days</li>
+        <li><strong>8–30 days</strong> → Weekly reminder</li>
+        <li><strong>> 30 days</strong> → No active reminder</li>
+      </ul>
+      <div id="reminderSections"></div>
+      <p id="reminderEmpty" class="empty hidden">No items need active reminders right now.</p>
+    </section>
+
+    <!-- Recipes Tab -->
+    <section id="recipes" class="tab-content">
+      <div class="center-box">
+        <p>Based on what you have, AI will suggest 3 dishes that prioritise items expiring soon.</p>
+        <button class="btn primary large" id="btnRecipes">🍳 Generate Recipes</button>
+      </div>
+      <div id="recipeList" class="recipe-list"></div>
+      <div id="recipeLoading" class="loading hidden">Thinking of tasty ideas...</div>
+    </section>
+
+    <!-- Chat Tab -->
+    <section id="chat" class="tab-content">
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Ask about your pantry..." />
+        <button class="btn primary" id="btnSend">Send</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Add Item Modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Add Product</h2>
+      <label>Name *</label>
+      <input id="fName" placeholder="e.g. Fresh milk" />
+      <label>Category</label>
+      <select id="fCategory">
+        <option>Dairy & Eggs</option>
+        <option>Meat & Fish</option>
+        <option>Vegetables</option>
+        <option>Fruits</option>
+        <option>Dry Goods</option>
+        <option>Drinks</option>
+        <option>Other</option>
+      </select>
+      <label>Quantity</label>
+      <input id="fQty" placeholder="1 pack / 500g" value="1" />
+      <label>Expiry Date *</label>
+      <input type="date" id="fExpiry" />
+      <label>Icon (emoji)</label>
+      <input id="fIcon" value="🛒" maxlength="4" />
+      <div class="modal-actions">
+        <button class="btn" id="btnCancel">Cancel</button>
+        <button class="btn primary" id="btnSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
